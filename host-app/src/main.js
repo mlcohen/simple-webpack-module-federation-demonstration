@@ -1,6 +1,6 @@
 function main() {
-    window.RemoteModuleFooUrl = 'http://localhost:8001/dist';
-    window.RemoteModuleBarUrl = 'http://localhost:8002/dist';
+    window.RemoteModuleFooUrl = 'http://localhost:8001';
+    window.RemoteModuleBarUrl = 'http://localhost:8002';
 
     import('RemoteModuleFoo/action').then((m) => {
         console.log('LOADED remote module foo');
