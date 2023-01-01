@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+
+set -eu
+
+cd host-app
+yarn clean
+yarn build
+cd -
+
+cd remote-module-foo
+yarn clean
+yarn build
+cd -
+
+cd remote-module-bar
+yarn clean
+yarn build
+cd -

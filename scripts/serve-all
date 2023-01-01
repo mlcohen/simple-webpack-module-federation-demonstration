@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+set -eu
+
+cd host-app
+python3 -m http.server 8000 & 
+HOST_PID=$!
+cd -
+
+cd remote-module-bar
+python3 -m http.server 8001 &
+REMOTE_BAR_PID=$!
+cd -
+
+cd remote-module-foo
+python3 -m http.server 8002 &
+REMOTE_FOO_PID=$!
+cd -
+
+cat <<EOF > pids
+$HOST_PID
+$REMOTE_BAR_PID
+$REMOTE_FOO_PID
+EOF
