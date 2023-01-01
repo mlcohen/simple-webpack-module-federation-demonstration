@@ -8,3 +8,5 @@ if ! [[ -f pids ]]; then
 fi
 
 cat pids | xargs -n 1 kill -s TERM
+
+rm pids

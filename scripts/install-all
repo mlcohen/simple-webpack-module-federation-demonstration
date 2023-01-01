@@ -2,6 +2,8 @@
 
 set -eu
 
+yarn install
+
 cd host-app
 yarn install
 cd -

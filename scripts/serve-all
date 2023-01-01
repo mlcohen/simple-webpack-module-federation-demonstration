@@ -2,20 +2,29 @@
 
 set -eu
 
-cd host-app
-python3 -m http.server 8000 & 
+yarn serve:host > /dev/null 2>&1 &
 HOST_PID=$!
-cd -
 
-cd remote-module-bar
-python3 -m http.server 8001 &
-REMOTE_BAR_PID=$!
-cd -
-
-cd remote-module-foo
-python3 -m http.server 8002 &
+yarn serve:remote-module-foo > /dev/null 2>&1 &
 REMOTE_FOO_PID=$!
-cd -
+
+yarn serve:remote-module-bar > /dev/null 2>&1 &
+REMOTE_BAR_PID=$!
+
+# cd host-app
+# python3 -m http.server 8000 & 
+# HOST_PID=$!
+# cd -
+
+# cd remote-module-bar
+# python3 -m http.server 8001 &
+# REMOTE_BAR_PID=$!
+# cd -
+
+# cd remote-module-foo
+# python3 -m http.server 8002 &
+# REMOTE_FOO_PID=$!
+# cd -
 
 cat <<EOF > pids
 $HOST_PID
