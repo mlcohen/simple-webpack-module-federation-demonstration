@@ -46,7 +46,7 @@ localhost:8001: a_action_js.js
 localhost:8002: b_action_js.js
 ```
 
-![JavaScript Console](./assets/images/console-output.jpg)
+![JavaScript Console](./assets/images/console-output.png)
 
 ### What's Happening?
 
