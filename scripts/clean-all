@@ -5,10 +5,8 @@ set -eu
 currentDir=$(dirname "${BASH_SOURCE[0]}")
 source $currentDir/common
 
-yarn install
-
 for proj in "${projects[@]}"; do
     cd $proj
-    yarn install
+    yarn clean
     cd -
 done

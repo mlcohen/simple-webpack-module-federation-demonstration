@@ -1,18 +1,13 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -eu
 
-cd host-app
-yarn clean
-yarn build
-cd -
+currentDir=$(dirname "${BASH_SOURCE[0]}")
+source $currentDir/common
 
-cd remote-module-foo
-yarn clean
-yarn build
-cd -
-
-cd remote-module-bar
-yarn clean
-yarn build
-cd -
+for proj in "${projects[@]}"; do
+    cd $proj
+    yarn clean
+    yarn build
+    cd -
+done

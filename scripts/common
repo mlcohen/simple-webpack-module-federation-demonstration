@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+projects=(host-app remote-module-foo remote-module-bar remote-module-baz)
