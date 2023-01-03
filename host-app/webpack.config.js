@@ -24,6 +24,7 @@ const config = {
             remotes: {
                 RemoteModuleFoo: `promise new Promise(${fetchRemoteModule("RemoteModuleFoo", "/moduleEntry.js")})`,
                 RemoteModuleBar: `promise new Promise(${fetchRemoteModule("RemoteModuleBar", "/moduleEntry.js")})`,
+                RemoteModuleBaz: `promise new Promise(${fetchRemoteModule("RemoteModuleBaz", "/moduleEntry.js")})`,
             },
             // remotes: {
             //     RemoteModuleFoo: "RemoteModuleFoo@[window.RemoteModuleFooUrl]/moduleEntry.js",
