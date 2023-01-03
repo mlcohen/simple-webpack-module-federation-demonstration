@@ -6,7 +6,7 @@ currentDir=$(dirname "${BASH_SOURCE[0]}")
 source $currentDir/common
 
 for proj in "${projects[@]}"; do
-    cd $proj
+    cd projects/$proj
     yarn clean
     yarn build
     cd -

@@ -8,7 +8,7 @@ source $currentDir/common
 yarn install
 
 for proj in "${projects[@]}"; do
-    cd $proj
+    cd projects/$proj
     yarn install
     cd -
 done
