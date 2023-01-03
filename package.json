@@ -5,10 +5,12 @@
   "main": "index.js",
   "scripts": {
     "install:all": "./scripts/install-all",
+    "clean:all": "./scripts/clean-all",
     "build:all": "./scripts/build-all",
-    "serve:host": "http-server ./host-app/dist -p 8000 -s",
-    "serve:remote-module-foo": "http-server ./remote-module-foo/dist -p 8001 -s",
-    "serve:remote-module-bar": "http-server ./remote-module-bar/dist -p 8002 -s",
+    "serve:host-app": "http-server ./host-app/dist -p 8000 -s -c-1",
+    "serve:remote-module-foo": "http-server ./remote-module-foo/dist -p 8001 -s -c-1",
+    "serve:remote-module-bar": "http-server ./remote-module-bar/dist -p 8002 -s -c-1",
+    "serve:remote-module-baz": "http-server ./remote-module-baz/dist -p 8003 -s -c-1",
     "serve:all": "./scripts/serve-all",
     "shutdown:all": "./scripts/shutdown-all"
   },
