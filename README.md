@@ -151,7 +151,7 @@ const config = {
 
 We use the plugin's `remotes` field to tell Webpack that we want to use the *Foo* remote module. The value assigned to the key _Foo_ is a stringified promise. This promise is what Webpack will use to fetch and load the remote module. The promise will create a DOM script element to fetch the remote module's entry file (`moduleEntry.js`). Once the entry file has been retrieved and loaded, the promise is resolved by passing back the *Foo* module's entry interface (an `init` and `get` function). This interface is what Webpack uses to import functionality from the remote module.
 
-Do you really need to explicitly write this promise logic? Well, no. You could instead use the `ExternalTemplateRemotesPlugin` [plugin](https://www.npmjs.com/package/external-remotes-plugin) that will essentially do the same thing. But seeing the promise logic makes it clear how Webpack goes about retrieving and loading remote modules. 
+Do you really need to explicitly write this promise logic? Well, no. Making your own explicit promise is useful when you want complete control over remote module loading. Instead, you can use the `ExternalTemplateRemotesPlugin` [plugin](https://www.npmjs.com/package/external-remotes-plugin) that will essentially do the same thing. But seeing the promise logic makes it clear how Webpack goes about retrieving and loading remote modules. 
 
 #### Importing remote modules
 
@@ -169,13 +169,13 @@ Above, we want to access the `doAction` function in the `Foo/action` module. `im
 
 ## What does Webpack actually do to make module federation work?
 
-Behind the scenes, Webpack does a bunch of work to keep track of modules making sure they are correctly imported based on what and how a module exports its functionality. Much if not all of this logic is automatically added by Webpack during the build and bundling process. Therefore, to understand how module federation _really works_ under the hood, you need to have some reasonable familiarity with how Webpack manages modules.
+Behind the scenes, Webpack does a bunch of work to keep track of modules. Making sure modules are correctly imported based on what a module exports and how it exports functionality. Much if not all of this logic is automatically added by Webpack during the build and bundling process. Therefore, to understand how module federation _really works_ under the hood, you need to have some reasonable familiarity with how Webpack manages modules.
 
-### Module Management: The Fundamentals
+### Module Fundamentals
 
-Every file that imports and/or exports is considered a module. In the case of JavaScript files, Webpack inheritly understands how to infer what a file, or rather _module_, is importing and exporting whether it be via [CommonJS](https://blog.risingstack.com/node-js-at-scale-module-system-commonjs-require/) (ie. `require` and `module.exports`), [ES6](https://www.digitalocean.com/community/tutorials/js-modules-es6) (ie. `import`, `export` statements) or some other common(-ish) JS modulization approach such as [AMD](https://requirejs.org/docs/whyamd.html). With this inherit knowledge, Webpack takes over the underlying mechanics of doing the actual importing and exporting.
+Every file that imports and/or exports is considered a module. In the case of JavaScript files, Webpack inheritly understands how to infer what a file, or rather _module_, is importing and exporting whether it be via [CommonJS](https://blog.risingstack.com/node-js-at-scale-module-system-commonjs-require/) (ie. `require` and `module.exports`), [ES6](https://www.digitalocean.com/community/tutorials/js-modules-es6) (ie. `import`, `export` statements) or some other common(-ish) JS modulization approach such as [AMD](https://requirejs.org/docs/whyamd.html). With this inherit knowledge, Webpack directly takes over the underlying mechanics of doing the actual importing and exporting.
 
-In a basic Webpack application that has one [defined entry point](https://requirejs.org/docs/whyamd.html) and one [defined output](https://webpack.js.org/concepts/#output) with and no use of dynamic importing, module federation, or any kind of configuration causing forced code splitting, the static bundle produced will contain all of the JavaScript modules that Webpack was able to resolve. Resolve based on what is being imported, starting from the file representing the entry point. Essentialy Webpack creates a graph of modules that it can then process. The result of this is that for each imported module that Webpack comes across, Webpack will add that module to the bundle by wrapping the module's code up in a closure and mapping the closure to a key where the key is a unique relative path to the module.
+In a basic Webpack application that has one [defined entry point](https://requirejs.org/docs/whyamd.html) and one [defined output](https://webpack.js.org/concepts/#output) with and no use of dynamic importing, module federation, or any kind of configuration that causes Webpack to split modules up into _chunks_, the static bundle produced will contain all of the JavaScript modules that Webpack was able to resolve. Resolve based on what is being imported, starting from the file representing the entry point. Essentialy Webpack creates a graph of modules that it can then process. The result of this is that for each imported module that Webpack comes across, Webpack will add that module to the bundle by wrapping the module's code up in a closure and mapping the closure to a key. The key being a unique relative path to the module.
 
 Let's put this into more concrete terms.
 
@@ -188,7 +188,7 @@ function toUpper(str) {
 }
 
 module.exports = {
-    toUppercase,
+    toUpper,
 };
 ```
 
@@ -205,14 +205,14 @@ main();
 
 The output will be a file named `bundle.js` containing `main.js` and `utils.js` code. Taking a look inside `bundle.js`, what do we get?
 
-When you first look at the bundle code generated by Webpack, you'll immediately notice a fair amount of anonymous closures. There is a root-level closure encapsulating all the code that Webpack generated. This is Webpack's _bootstrap_ closure and gets immediately executed once all the JavaScript has been processed. (To put it another way, the bootstrap closure is an [IFFE](https://developer.mozilla.org/en-US/docs/Glossary/IIFE)).
+When you first look at the bundle code generated by Webpack, you'll immediately notice a fair amount of anonymous closures. There is a root-level closure encapsulating all the code that Webpack generated. This is Webpack's _bootstrap_ closure and gets immediately executed once all the JavaScript has been processed. (To put it another way, the bootstrap closure is an [IIFE](https://developer.mozilla.org/en-US/docs/Glossary/IIFE)).
 
 Within the bootstrap closure, there are two fundamental parts that drive Webpack's module management:
 
 1. A dictionary `___webpack_modules___` that stores all of the modules resolved by Webpack
 2. A `__webpack_require__` function used to resolve imported modules at runtime
 
-For the `util.js` file, the code is wrapped up in an anonomys function that is provided a single argument: access to the module's root object that provides access to the module's exports object.
+For the `util.js` file, the code is wrapped up in an anonymous function that is provided a single argument: access to the module's root object that provides access to the module's `exports` object.
 
 
 ```js
@@ -229,9 +229,9 @@ var __webpack_modules__ = ({
 });
 ```
 
-If a module were to import functionality from other modules, Webpack would adjust the anonymous wrapper to pass in Webpack's `__webpack_require__` function.
+(If a module were to import functionality from other modules, Webpack would adjust the anonymous closure to pass in Webpack's `__webpack_require__` function.)
 
-For the entry file `main.js`, Webpack treats it a bit differently. First, the main module's code is placed at the very end of the bootstrap closure. Second, the main module's code is wrapped up in an anonymous closure but it is not provided any arguments. Instead is just directly access the `__webpack_require__` fucnction defined within the bootstrap closure. In the end we get the following:
+For the entry file `main.js`, Webpack treats it a bit differently. First, the main module's code is placed at the very end of the bootstrap closure. Second, the main module's code is wrapped up in an anonymous closure but it is not provided any arguments. Instead is just directly accesses the `__webpack_require__` fucnction defined within the bootstrap closure. In the end we get the following:
 
 ```js
 (() => { // webpack's bootstrap closure	
@@ -251,7 +251,7 @@ function __webpack_require__(moduleId) {
     const { toUpper } = __webpack_require__("./utils.js");
 
     function main() {
-        console.log(toUpper("Hello world");
+        console.log(toUpper("Hello world"));
     }
 
     main();
@@ -260,7 +260,9 @@ function __webpack_require__(moduleId) {
 })(); 
 ```
 
-And that's basically it. Again, this is what Webpack would generate for an application with simple importing and exporting. Additional logic would be added if we were to use ES6 `import` and `export` statements but the funadmentals would still be there (`___webpack_modules___` and `__webpack_require__`).
+That's basically it.
+
+Again, this is what Webpack would generate for an application with simple importing and exporting. Additional logic would be added if we were to use ES6 `import` and `export` statements but the funadmentals would still be there (`___webpack_modules___` and `__webpack_require__`). (Also, there may be less code generated based on how Webpack optimization is configured).
 
 What about this `__webpack_require__` function, anyway? What is it doing? It's fairly simple. All the require function does is lookup a module being imported, get the module's root object, prepare the module if it's the first time the module is being accessed, and, finally, return the module's exports object. This is the require function generated for our simple bundle:
 
@@ -282,3 +284,34 @@ function __webpack_require__(moduleId) {
     return module.exports;
 }
 ```
+
+### Chunking Modules
+
+Let's say you have a single page web application that is growing by leaps and bounds. There's lots of rich functionality you and your team have worked very hard on over the last while. To make everything work, you had to write a lot of code but also make good use of third-party packages that you pulled down from npm. Perhaps you even got to a point where you created your own reusable packages. Great! So what does this mean all mean for Webpack? 
+
+First, all the code is spread out over many JavaScript files (or TypeScript files!). Files, again, being _modules_, are exporting funtionality and importing funtionality from other modules. Tens, hundreds, possibly a few thousand modules. It all adds up. If you kept your Webpack configuration simple, Webpack will generate one big bundle. Big bundles lead to various problems such as:
+
+1. Taking more and more time for Webpack to process and build your bundle
+2. Taking more time for browsers to download your bundle
+3. Taking more time for a browser's JavaScript engine to process the bundle in order to execute the code
+
+For building, it can impact your velocity to develop, test and deploy. Not great. For those who want to use your fancy web application, it just takes more time to download and execute. That can lead to a frustrating user experience. 
+
+Webpack doesn't leave you hanging dry. A good, common first step is to apply basic optimization like code minification and tree shaking. That helps with making a smaller bundle but it also leads to longer builds. An additional step would be to zip up your bundle to further reduce the size thereby making it faster for browsers to download. Heck, you can toss your zipped bundle onto a CDN to further speed up download time. All good things to do!
+
+Okay, so there are optimization you can make to reduce your bundle's size but can we do better? Can we somehow tell Webpack to split all those modules up into groups of modules that belong in their own bundled file? Yep, you sure can!
+
+The act of grouping modules so that they can outputted into their own bundle is referred to a _chunking_. So a _chunk_ is a collection of modules that is split out into its own bundled file. How many chunks can you generate? That comes down to many factors in how you end up configurating Webpack and even how you go about importing modules. 
+
+Here are some common use cases for chunking:
+
+1. You have multi-entry setup and you want to chunk the common modules across the entries
+2. You want to chunk common third-party packages (think packages like lodash, react, react-dom, etc)
+3. You have functionality you want defer loading until needed
+
+Let's take two of these common use cases and see how it works.
+
+#### Multi-Entry Web Application
+
+We'll work with a rather trivialized example but one that gets allows you to understand the basic mechanics of what Webpack produces and how Webpack ends up managing chunks.
+
