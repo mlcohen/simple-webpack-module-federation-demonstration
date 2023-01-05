@@ -197,7 +197,7 @@ module.exports = {
 const { toUpper } = require("./utils");
 
 function main() {
-	console.log(toUpper("Hello world");
+    console.log(toUpper("Hello world");
 }
 
 main();
@@ -219,13 +219,13 @@ For the `util.js` file, the code is wrapped up in an anonomys function that is p
 var __webpack_modules__ = ({
     "./utils.js": ((module) => {
         function toUpper(str) {
-            str.toUppercase()
+            str.toUpperCase()
         }
 
         module.exports = {
-          toUpper,
-		 };
-	}),
+            toUpper,
+        };
+    }),
 });
 ```
 
@@ -268,17 +268,17 @@ What about this `__webpack_require__` function, anyway? What is it doing? It's f
 var __webpack_module_cache__ = {};
 
 function __webpack_require__(moduleId) {
-	var cachedModule = __webpack_module_cache__[moduleId];
-	if (cachedModule !== undefined) {
-		return cachedModule.exports;
-	}
+    var cachedModule = __webpack_module_cache__[moduleId];
+    if (cachedModule !== undefined) {
+        return cachedModule.exports;
+    }
 
-	var module = __webpack_module_cache__[moduleId] = {
-		exports: {}
-	};
+    var module = __webpack_module_cache__[moduleId] = {
+        exports: {}
+    };
 
-	__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+    __webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 
-	return module.exports;
+    return module.exports;
 }
 ```
