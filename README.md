@@ -89,7 +89,7 @@ For example, let's say you want to create a remote module *Foo* that exports (or
 // webpack.config.js (using Webpack v5)
 const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
 
-const config = {
+module.exports = {
     ...
     plugins: [
         new ModuleFederationPlugin({
@@ -99,8 +99,6 @@ const config = {
         }),
     ],
 };
-
-module.exports = config;
 ```
 
 Each part in the remote module project's configuration is important as it will be needed by a host to use it.
@@ -119,7 +117,7 @@ Like remote modules, the host application also makes use of Webpack's `ModuleFed
 ```js
 const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
 
-const config = {
+module.exports = {
     ...
     plugins: [
         new ModuleFederationPlugin({
@@ -287,9 +285,9 @@ function __webpack_require__(moduleId) {
 
 ### Chunking Modules
 
-Let's say you have a single page web application that is growing by leaps and bounds. There's lots of rich functionality you and your team have worked very hard on over the last while. To make everything work, you had to write a lot of code but also make good use of third-party packages that you pulled down from npm. Perhaps you even got to a point where you created your own reusable packages. Great! So what does this mean all mean for Webpack? 
+Let's say you have a single page web application that is growing by leaps and bounds. There's lots of rich functionality you and your team have worked very hard on over the last while. To make everything work, you had to write a lot of code but also make good use of third-party packages that you pulled down from [npmjs](https://www.npmjs.com). Perhaps you even got to a point where you created your own reusable packages. Great! So what does this all mean for Webpack? 
 
-First, all the code is spread out over many JavaScript files (or TypeScript files!). Files, again, being _modules_, are exporting funtionality and importing funtionality from other modules. Tens, hundreds, possibly a few thousand modules. It all adds up. If you kept your Webpack configuration simple, Webpack will generate one big bundle. Big bundles lead to various problems such as:
+First, all the code is spread out over many JavaScript files (or TypeScript files!). Files, again, being _modules_, are exporting funtionality and importing funtionality from other modules. Tens, hundreds, possibly a couple thousand modules. It all adds up. If you kept your Webpack configuration simple, Webpack will generate one big bundle. Big bundles lead to various problems such as:
 
 1. Taking more and more time for Webpack to process and build your bundle
 2. Taking more time for browsers to download your bundle
@@ -297,11 +295,11 @@ First, all the code is spread out over many JavaScript files (or TypeScript file
 
 For building, it can impact your velocity to develop, test and deploy. Not great. For those who want to use your fancy web application, it just takes more time to download and execute. That can lead to a frustrating user experience. 
 
-Webpack doesn't leave you hanging dry. A good, common first step is to apply basic optimization like code minification and tree shaking. That helps with making a smaller bundle but it also leads to longer builds. An additional step would be to zip up your bundle to further reduce the size thereby making it faster for browsers to download. Heck, you can toss your zipped bundle onto a CDN to further speed up download time. All good things to do!
+Webpack doesn't leave you hanging dry. A good first step is to apply standard optimizations like [code minification](https://github.com/terser/terser), [tree shaking](https://webpack.js.org/guides/tree-shaking/), and [module concatenation](https://webpack.js.org/plugins/module-concatenation-plugin/). They all help to make a bundle smaller and faster to load, however it also leads to longer builds. An additional step would be to zip up your bundle to further reduce the size thereby making it faster for browsers to download. Heck, you can toss your zipped bundle onto a CDN to further speed up download time. All good things to do!
 
-Okay, so there are optimization you can make to reduce your bundle's size but can we do better? Can we somehow tell Webpack to split all those modules up into groups of modules that belong in their own bundled file? Yep, you sure can!
+Okay, so there are optimization you can make to reduce your bundle's size but can we do better? Can we somehow tell Webpack to, say, split all those modules up into groups of modules that can then put into their own bundled file? Yep, you sure can!
 
-The act of grouping modules so that they can outputted into their own bundle is referred to a _chunking_. So a _chunk_ is a collection of modules that is split out into its own bundled file. How many chunks can you generate? That comes down to many factors in how you end up configurating Webpack and even how you go about importing modules. 
+The act of grouping modules so that they can outputted into their own bundle is referred to a _chunking_. So a _chunk_ is a collection of modules that are split out into its own bundled file. How many chunks can you generate? That comes down to many factors in how you end up configurating Webpack and even how you go about importing modules. 
 
 Here are some common use cases for chunking:
 
@@ -313,5 +311,188 @@ Let's take two of these common use cases and see how it works.
 
 #### Multi-Entry Web Application
 
-We'll work with a rather trivialized example but one that gets allows you to understand the basic mechanics of what Webpack produces and how Webpack ends up managing chunks.
+We'll work with a rather trivialized example but one that allows you to understand some of the common mechanics of what Webpack produces and how Webpack ends up managing chunks.
 
+Our application will have two entries: `main1.js` and `main2.js`. Both will import funtionality from a utils module (`utils.js`). Here's what we have:
+
+```js
+// utils.js
+function toUpper(value) {
+    return value.toUpperCase();
+}
+
+module.exports = {
+  toUpper,
+};
+```
+
+```js
+// main1.js
+const { toUpper } = require("./utils.js");
+
+function main() {
+    console.log(toUpper("Running main1"));
+}
+
+main();
+```
+
+```js
+// main2.js
+const { toUpper } = require("./utils.js");
+
+function main() {
+    console.log(toUpper("Running main2"));
+}
+
+main();
+```
+
+With these files, our Webpack configuration is the following:
+
+```js
+module.exports = {
+    context: path.join(__dirname, "src"),
+    entry: {
+        main1: "./main1.js",
+        main2: "./main2.js",
+    },
+    output: {
+        path: path.join(__dirname, "dist"),
+        filename: "[name].bundle.js",
+    },
+    optimization: {
+        splitChunks: {
+           chunks: 'all',
+           minSize: 0,
+        }
+    }
+}
+```
+
+The interesting part is the `splitChunks` optimization field. We're telling Webpack to gather all of the _shared modules_ into a common chunk. The `minSize` field is set to zero bytes to make sure that Webpack will put the utils module code into the chunk. If we didn't set the `minSize` field, Webpack would skip the module because of [default split chunk settings](https://webpack.js.org/plugins/split-chunks-plugin/#optimizationsplitchunks). 
+
+When we build, Webpack will produce three files: `main1.bundle.js`, `main2.bundle.js` and `utils_js.bundle.js`. Let's take a look at the utils bundle.
+
+```js
+// utils_js.bundle.js -- formatted for clarity
+(self["webpackChunk"] = self["webpackChunk"] || []).push([["utils_js"], {
+
+    "./utils.js": ((module) => {
+        function toUpper(value) {
+            return value.toUpperCase();
+        }
+
+        module.exports = {
+            toUpper,
+        };
+    })
+
+}]);
+```
+
+Compared to the single bundle we've seen before, the chunk bundle is different. It's void of a `__webpack_modules__` object that maps a module's closure to a key; however, we still do see modules being mapped to keys just as if the bundle did have `__webpack_modules__` . Also, notice that there is no `__webpack_require__` function. What this suggests is that the modules in the chunk bundle will be managed by the bundles representing the entries. A clue is the the webpack chunk list (`webpackChunk`) where Webpack is pushing the chunk's modules into the list. The Webpack chunk list is global within a JavaScript runtime environment. Global since the list is assigned to the global window object aliased as `self`. 
+
+Now let's turn our attention to one of the entry bundles.
+
+```js
+// main1.bundle.js -- formatted for clarity
+(() => {
+    var __webpack_modules__ = ({
+        "./main1.js": ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+            const { toUpper } = __webpack_require__("./utils.js");
+
+            function main() {
+                console.log(toUpper("Running main1"));
+            }
+
+            main();
+        })
+	  });
+
+    function __webpack_require__(moduleId) {
+        ...
+    }
+	
+	  __webpack_require__.m = __webpack_modules__;
+	
+    (() => {
+        var deferred = [];
+        __webpack_require__.O = (result, chunkIds, fn, priority) => {
+            ...
+        };
+    })();
+	
+	  (() => {
+        var installedChunks = {
+            "app1": 0
+        };
+		
+        var webpackJsonpCallback = (parentChunkLoadingFunction, data) => {
+            var [chunkIds, moreModules, runtime] = data;
+            var moduleId, chunkId, i = 0;
+
+            if (chunkIds.some((id) => (installedChunks[id] !== 0))) {
+                for (moduleId in moreModules) {
+                    if (__webpack_require__.o(moreModules, moduleId)) {
+                        __webpack_require__.m[moduleId] = moreModules[moduleId];
+                    }
+                }
+                if (runtime) var result = runtime(__webpack_require__);
+            }
+          
+            if (parentChunkLoadingFunction) parentChunkLoadingFunction(data);
+          
+            for (; i < chunkIds.length; i++) {
+                chunkId = chunkIds[i];
+                if (__webpack_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
+                    installedChunks[chunkId][0]();
+                }
+                installedChunks[chunkId] = 0;
+            }
+          
+            return __webpack_require__.O(result);
+        }
+        
+        var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
+        chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
+        chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
+    })();
+	
+    var __webpack_exports__ = __webpack_require__.O(undefined, ["utils_js"], () => (__webpack_require__("./main1.js")))
+    __webpack_exports__ = __webpack_require__.O(__webpack_exports__);	
+})();
+```
+
+The main entry bundle brings us back to some level of familiarity. We see it contains `__webpack_modules__` and `__webpack_require__` just like our simpler bundle from before. Beyond that, things have changed. The main module is not at the bottom of the bootstrap closure ready to be immediately executed. It's been moved up into `__webpack_modules__`. At the end of the bootstrap closure we now see some rather curious statements:
+
+```js
+var __webpack_exports__ = __webpack_require__.O(undefined, ["utils_js"], () => (__webpack_require__("./main1.js")))
+__webpack_exports__ = __webpack_require__.O(__webpack_exports__);	
+```
+
+We also see that Webpack has inserted a whole bunch of other logic into the bundle, some of which is attached to the `__webpack_require__` function. Things appear to be getting more complex. Let's break it down.
+
+With modules split across bundles, Webpack needs to be very mindful of when modules in a chunk have been loaded. For modules that import logic from modules stored in separate bundles, Webpack needs some way of _deferring_ their execution _until_ those separate bundles have been successfully loaded. 
+
+In our example, we have two bundles: `main1.bundle.js` and `utils_js.bundle.js`. The utils bundle could end up being loaded _before_ or _after_ the main bundle. Webpack doesn't know what order the bundles will be loaded, so it needs to take that into account. Here, Webpack defers executing the main module until the utils bundle (`utils_js`) has been successfully loaded. To do this, it uses `__webpack_require__.O`:
+
+```js
+__webpack_require__.O(undefined, ["utils_js"], () => (__webpack_require__("./main1.js")))
+```
+
+The implementation details of `__webpack_require__.O` have been omitted since they're not that important. Just know that it is responsible for executing modules that have been deferred, which in our case is the main module.
+
+If a module's execution has been deferred, how does Webpack now when it's safe to executed those deferred modules? The answer lies with the `webpackChunk` list and the `webpackJsonpCallback` function.
+
+We got a sneak peek at Webpack populating `webpackChunk` in the chunk bundle. Now we see how it all comes together. Essentially, Webpack is using the global `webpackChunk` list as a means of coordinating chunk loading and execution. Any module that has logic that directly controls module execution uses `webpackChunk` to invoke a callback that does the work of grabbing modules from a chunk to coordinate of loading the modules and executing in the right order. The callback here being `webpackJsonpCallback`. 
+
+```js
+var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
+chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
+chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
+```
+
+What's interesting is how Webpack will chain these callbacks together. This means that the chain of callbacks will be invoked each time a bundle is loaded.
+
+It's now clear that `chunkLoadingGlobal` and `webpackJsonpCallback` play a fundamental role in chunk management just like how `__webpack_modules__` and `__webpack_require__` are fundamental in the basic mechanics of importing and exporting. We'll see these concepts play out as we move forward.
