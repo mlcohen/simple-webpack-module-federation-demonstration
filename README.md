@@ -408,13 +408,13 @@ Now let's turn our attention to one of the entry bundles.
 
             main();
         })
-	  });
+    });
 
     function __webpack_require__(moduleId) {
         ...
     }
 	
-	  __webpack_require__.m = __webpack_modules__;
+    __webpack_require__.m = __webpack_modules__;
 	
     (() => {
         var deferred = [];
@@ -423,7 +423,7 @@ Now let's turn our attention to one of the entry bundles.
         };
     })();
 	
-	  (() => {
+	(() => {
         var installedChunks = {
             "app1": 0
         };
@@ -464,11 +464,10 @@ Now let's turn our attention to one of the entry bundles.
 })();
 ```
 
-The main entry bundle brings us back to some level of familiarity. We see it contains `__webpack_modules__` and `__webpack_require__` just like our simpler bundle from before. Beyond that, things have changed. The main module is not at the bottom of the bootstrap closure ready to be immediately executed. It's been moved up into `__webpack_modules__`. At the end of the bootstrap closure we now see some rather curious statements:
+The main entry bundle brings us back to some level of familiarity. We see it contains `__webpack_modules__` and `__webpack_require__` just like our simpler bundle from before. Beyond that, things have changed. The main module is not at the bottom of the bootstrap closure ready to be immediately executed. It has been moved up into `__webpack_modules__`. At the end of the bootstrap closure we now have this rather curious statement:
 
 ```js
-var __webpack_exports__ = __webpack_require__.O(undefined, ["utils_js"], () => (__webpack_require__("./main1.js")))
-__webpack_exports__ = __webpack_require__.O(__webpack_exports__);	
+__webpack_require__.O(undefined, ["utils_js"], () => (__webpack_require__("./main1.js")))
 ```
 
 We also see that Webpack has inserted a whole bunch of other logic into the bundle, some of which is attached to the `__webpack_require__` function. Things appear to be getting more complex. Let's break it down.
@@ -478,14 +477,21 @@ With modules split across bundles, Webpack needs to be very mindful of when modu
 In our example, we have two bundles: `main1.bundle.js` and `utils_js.bundle.js`. The utils bundle could end up being loaded _before_ or _after_ the main bundle. Webpack doesn't know what order the bundles will be loaded, so it needs to take that into account. Here, Webpack defers executing the main module until the utils bundle (`utils_js`) has been successfully loaded. To do this, it uses `__webpack_require__.O`:
 
 ```js
-__webpack_require__.O(undefined, ["utils_js"], () => (__webpack_require__("./main1.js")))
+(() => {
+    var deferred = [];
+    __webpack_require__.O = (result, chunkIds, fn, priority) => {
+        ...
+    };
+})();
 ```
 
-The implementation details of `__webpack_require__.O` have been omitted since they're not that important. Just know that it is responsible for executing modules that have been deferred, which in our case is the main module.
+The implementation details of `__webpack_require__.O` have been omitted since they're not that important. Just know that it is responsible for executing modules that have been deferred, which in our case is the main module. The `chunkIds` argument indicates what chunks need to be loaded _before_ the callback `fn` can be executed. So in our example, once the `utils_js` chunk has been loaded, Webpack will then invoke the supplied callback which is `() => __webpack_require__("./main1.js")`.
 
-If a module's execution has been deferred, how does Webpack now when it's safe to executed those deferred modules? The answer lies with the `webpackChunk` list and the `webpackJsonpCallback` function.
+If a module's execution has been deferred, how does Webpack know when it's safe to execute those deferred modules? The answer lies with the `webpackChunk` list and the `webpackJsonpCallback` function. We got a sneak peek at Webpack populating `webpackChunk` in the chunk bundle. Now we see how it all comes together.
 
-We got a sneak peek at Webpack populating `webpackChunk` in the chunk bundle. Now we see how it all comes together. Essentially, Webpack is using the global `webpackChunk` list as a means of coordinating chunk loading and execution. Any module that has logic that directly controls module execution uses `webpackChunk` to invoke a callback that does the work of grabbing modules from a chunk to coordinate of loading the modules and executing in the right order. The callback here being `webpackJsonpCallback`. 
+Essentially, Webpack is using the global `webpackChunk` list as a means of coordinating chunk loading and execution. It's what _glues_ bundles together at runtime. A bundle that directly controls module execution uses `webpackChunk` to invoke a callback. The callback does the work of grabbing modules from a loaded chunk and then executing modules in the right order. The callback here being `webpackJsonpCallback`. 
+
+If the utils bundle is loaded _before_ the main entry bundle, the utils bundle will just push it's list of modules into the webpack chunk list. Nothing else will happen up until a entry bundle is loaded. If the utils bundle is loaded _after_ the main entry bundle, the utils bundle will still push its list of modules into the webpack chunk list which in turn will immediately invoked the chain of callbacks.
 
 ```js
 var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
@@ -495,4 +501,6 @@ chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.pus
 
 What's interesting is how Webpack will chain these callbacks together. This means that the chain of callbacks will be invoked each time a bundle is loaded.
 
-It's now clear that `chunkLoadingGlobal` and `webpackJsonpCallback` play a fundamental role in chunk management just like how `__webpack_modules__` and `__webpack_require__` are fundamental in the basic mechanics of importing and exporting. We'll see these concepts play out as we move forward.
+It's now clear that `webpackChunk` and `webpackJsonpCallback` play a fundamental role in chunk management just like how `__webpack_modules__` and `__webpack_require__` are fundamental in the basic mechanics of importing and exporting. We'll see these concepts play out as we move forward.
+
+One final note: In this particular scenario, _all_ of the bundles _must_ to be loaded _before_ Webpack will execute an entry bundle's main module. No bundle can be deferred until some time later when it is really needed. It's all or nothing. This approach is fine but what if your web application has has some functionality that you do want to defer loading until it's absolutely needed. In other words, how can you tell Webpack to execute you web application with a minimal amount of functionality and over time dynamically load bundles when they are needed. Just in time bundle loading. That's what we'll focus on next.
