@@ -423,7 +423,7 @@ Now let's turn our attention to one of the entry bundles.
         };
     })();
 	
-	(() => {
+    (() => {
         var installedChunks = {
             "app1": 0
         };
@@ -503,4 +503,40 @@ What's interesting is how Webpack will chain these callbacks together. This mean
 
 It's now clear that `webpackChunk` and `webpackJsonpCallback` play a fundamental role in chunk management just like how `__webpack_modules__` and `__webpack_require__` are fundamental in the basic mechanics of importing and exporting. We'll see these concepts play out as we move forward.
 
-One final note: In this particular scenario, _all_ of the bundles _must_ to be loaded _before_ Webpack will execute an entry bundle's main module. No bundle can be deferred until some time later when it is really needed. It's all or nothing. This approach is fine but what if your web application has has some functionality that you do want to defer loading until it's absolutely needed. In other words, how can you tell Webpack to execute you web application with a minimal amount of functionality and over time dynamically load bundles when they are needed. Just in time bundle loading. That's what we'll focus on next.
+In this particular scenario, _all_ of the bundles _must_ to be loaded _before_ Webpack will execute an entry bundle's main module. A bundle cannot be deferred until some time later when it is really needed. It's all or nothing. Knowing this, how do all the modules get loaded? This can be done by including link to the bundles in an HTML page which can be easily achieved using the [plugin](https://webpack.js.org/plugins/html-webpack-plugin/) `HtmlWebpackPlugin`.
+
+```js
+// webpack.config.js
+{
+    ...
+    plugins: [
+        new HtmlWebpackPlugin({
+            filename: "index.html",
+            chunks: ["main1"],
+            template: path.join(__dirname, "/assets/index.html"),
+        }),
+        new HtmlWebpackPlugin({
+            filename: "index.html",
+            chunks: ["main2"],
+            template: path.join(__dirname, "/assets/index.html"),
+        }),
+        ...
+    ]
+}
+```
+
+Given a HTML template, the plugin will automatically insert script elements for each bundle generated:
+
+```html
+<html>
+    <head>
+        <script defer src="./utils_js.bundle.js"></script>
+        <script defer src="./main1.bundle.js"></script>
+    </head>
+<body>
+<div id="app"></div>
+</body>
+</html>
+```
+
+This approach is fine but what if your web application has has some functionality where you do want to defer loading chunks until they're absolutely needed. In other words, how can you tell Webpack to execute you web application with a minimal amount of functionality and over time dynamically load chunks when they are needed. Just in time chunk loading. That's what we'll focus on next.
