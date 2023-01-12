@@ -352,7 +352,7 @@ With these files, our Webpack configuration is the following:
 
 ```js
 module.exports = {
-    context: path.join(__dirname, "src"),
+    mode: "development",
     entry: {
         main1: "./main1.js",
         main2: "./main2.js",
@@ -511,31 +511,32 @@ In this particular scenario, _all_ of the bundles _must_ to be loaded _before_ W
     ...
     plugins: [
         new HtmlWebpackPlugin({
-            filename: "index.html",
+            filename: "main1.html",
             chunks: ["main1"],
-            template: path.join(__dirname, "/assets/index.html"),
         }),
         new HtmlWebpackPlugin({
-            filename: "index.html",
+            filename: "main2.html",
             chunks: ["main2"],
-            template: path.join(__dirname, "/assets/index.html"),
         }),
         ...
     ]
 }
 ```
 
-Given a HTML template, the plugin will automatically insert script elements for each bundle generated:
+The plugin will automatically create an HTML page and insert script elements for each bundle generated:
 
 ```html
+<!DOCTYPE html>
 <html>
     <head>
+        <meta charset="utf-8">
+        <title>Webpack App</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <script defer src="./utils_js.bundle.js"></script>
-        <script defer src="./main1.bundle.js"></script>
+        <script defer src="./app2.bundle.js"></script>
     </head>
-<body>
-<div id="app"></div>
-</body>
+    <body>
+    </body>
 </html>
 ```
 
