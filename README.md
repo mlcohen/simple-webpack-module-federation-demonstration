@@ -63,11 +63,11 @@ Two key aspects of module federation are being demonstrated:
 1. Loading remote federated modules and executing their exported logic
 2. Sharing common logic among the federated modules
 
-When you load the host app, the app's `main` [function](./projects/host-app/src/main.js) will be invoked. When invoked, the `main` function will dynamically import and invoke functions belonging to remote federated modules: First `RemoteModuleFoo/action` then `RemoteModuleBar/action` and finally `RemoteModuleBaz/action`.
+When you load the host app, the app's `main` [function](./projects/host-app/src/main.js) will be invoked. When invoked, the `main` function will first dynamically import the host's [app object](./projects/host-app/src/app.js) and invoke its run method. This will cause the app object to then dynamically load three remote federated modules and execute their respective exported action function: First [RemoteModuleFoo/action](./projects/remote-module-foo/src/action.js) then [RemoteModuleBar/action](./projects/remote-module-bar/src/action.js) and finally [RemoteModuleBaz/action](./projects/remote-module-baz/src/action.js).
 
 Each remote federated module is loaded in series with a bit of delay added in between. This is to help emphasize how the remote module are loaded by Webpack.
 
-Sharing common modules is a key concept of module federation. It helps minimize the size of the federated modules and reduces the amount code to fetch and load. It's also beneficial when there is common logic that must be a singleton across federated modules that all run within the same execution environment (e.g. React). In this demonstration, all of the federated modules make use of `lodash/toUpper`. Since the host is the fisrst to be loaded, it shares its copy of `lodash/toUpper` module with the remote modules.
+Sharing common logic is a key concept of module federation. It helps minimize the size of the federated modules and reduces the amount code to fetch and load. It's also beneficial when there is common logic that must be run as a singleton across federated modules within the same execution environment (e.g. React). In this demonstration, all of the federated modules make use of `lodash/toUpper`. Since the host is the fisrst to be loaded, it [shares](./projects/host-app/webpack.config.js) its local copy of `lodash/toUpper` with the remote modules.
 
 ## What is module federation?
 
