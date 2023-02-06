@@ -1,22 +1,48 @@
+const package = require("./package.json");
 const path = require("path");
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
 
 const config = {
     mode: "development",
     context: path.join(__dirname, "src"),
-    entry: "./index.js",
+    entry: "./main.js",
+    output: {
+        path: path.join(__dirname, "dist"),
+        filename: "baz-[name].bundle.js",
+        uniqueName: package.name,
+    },
     resolve: {
         extensions: ['.js'],
     },
     plugins: [
+        new HtmlWebpackPlugin({
+            filename: "index.html",
+            template: path.join(__dirname, "/assets/index.html"),
+            excludeChunks: ["RemoteModuleBaz"],
+        }),
         new ModuleFederationPlugin({
             name: "RemoteModuleBaz",
             filename: "moduleEntry.js",
             exposes: {
-                "./action": "./c/action",
+                "./action": "./action",
             },
+            shared: ["lodash/toUpper"],
         }),
     ],
+    optimization: {
+        splitChunks: {
+            minSize: 0,
+            cacheGroups: {
+                vendor: {
+                    test: /\/node_modules\//,
+                    name: 'vendor',
+                    filename: 'baz-[name].bundle.js',
+                    chunks: 'all',
+                },
+            },
+        },
+    },
     devtool: false,
     target: "web",
 };

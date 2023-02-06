@@ -18,37 +18,40 @@ The host app and the three remote modules are all served from their own local se
 ## Setup
 
 1. `yarn install`
-2. `yarn project:install:all`
-3. `yarn project:build:all`
+2. `yarn projects:install:all`
+3. `yarn projects:build:all`
 
 
 ## Running the Demonstration
 
-- To serve host and the remote modules, run `yarn project:serve:all`
-- To shutdown the local servers, run `yarn project:shutdown:all`
+- To serve host and the remote modules, run `yarn projects:serve:all`
+- To shutdown the local servers, run `yarn projects:shutdown:all`
 
 When the servers are all running, open your browser and go to `http://localhost:8000`. In your browser's JavaScript console, you should see the following output:
 
 ```
-LOADED remote module foo
-remote foo action invoked
-LOADED remote module bar
-remote bar action invoked
-LOADED remote module baz
-remote baz action invoked
+HOST says hello world!
+Loaded remote module foo
+remote FOO action invoked
+Loaded remote module bar
+remote BAR action invoked
+Loaded remote module baz
+remote BAZ action invoked
 ```
 
 In your browser's inspector network tab, you should see the following files being loaded in this order:
 
 ```
 localhost:8000: index.html
-localhost:8000: bundle.js
+localhost:8000: host-vendor.bundle.js
+localhost:8000: host-main.bundle.js
 localhost:8001: moduleEntry.js
 localhost:8002: moduleEntry.js	
 localhost:8003: moduleEntry.js	
-localhost:8001: a_action_js.js
-localhost:8002: b_action_js.js
-localhost:8003: c_action_js.js
+localhost:8001: host-app_js.bundle.js
+localhost:8001: foo-action_js.bundle.js
+localhost:8002: bar-action_js.bundle.js
+localhost:8003: baz-action_js.bundle.js
 ```
 
 ![JavaScript Console](./assets/images/console-output.png)
@@ -57,9 +60,11 @@ localhost:8003: c_action_js.js
 
 When you load the host app, the app's `main` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/host-app/src/main.js) will execute. When invoked, the `main` function will dynamically import three modules: First `RemoteModuleFoo/action` then `RemoteModuleBar/action` and finally `RemoteModuleBaz/action`.
 
-When a remote module has been loaded, the host app will execute an exported function from imported module. For the foo remote module, the exported `doRemoteFooAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-foo/src/a/action.js) is invoked, and for the bar remote module, the exported `doRemoteBarAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-bar/src/b/action.js) is invoked, and for the baz remote module, the exported `doRemoteBazAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-baz/src/c/action.js) is invoked.
+When a remote module has been loaded, the host app will execute an exported function from imported module. For the foo remote module, the exported `doRemoteFooAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-foo/src/action.js) is invoked, and for the bar remote module, the exported `doRemoteBarAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-bar/src/action.js) is invoked, and for the baz remote module, the exported `doRemoteBazAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-baz/src/action.js) is invoked.
 
 Each remote module is loaded in series with a bit of delay added in between. This is to help emphasize how remote module are loaded by Webpack.
+
+This demonstration also showcases how modules can be shared among federated modules. Here `lodash/toUpper` is shared amoung the host app to the three remote modules.
 
 ## What is module federation?
 
@@ -540,4 +545,149 @@ The plugin will automatically create an HTML page and insert script elements for
 </html>
 ```
 
-This approach is fine but what if your web application has has some functionality where you do want to defer loading chunks until they're absolutely needed. In other words, how can you tell Webpack to execute you web application with a minimal amount of functionality and over time dynamically load chunks when they are needed. Just in time chunk loading. That's what we'll focus on next.
+#### Dynamic Importing
+
+We have seen how Webpack can group modules into chunks that are in turn packaged into bundles. The approach so far requires that _all_ of the chunks be loaded _before_ your application's main entry module can be executed. For small applications this is likely not a problem; however, when your application grows to a significant size, more has to be downloaded and processed by a web browser before the application can be used. It'd be better if we could structure things in a way that only the absolute minimum code needs to be loaded to start using your application. The faster your users can begin using your app, the happier they are. When functionality is needed that has not yet been loaded, your application dynamically fetches the functionality on a just in time basis. Can Webpack do this for us? Yes, using `import()`.
+
+To understand how Webpack uses `import()`, we'll use a simple example.
+
+```js
+// utils.js
+function toUpper(value) {
+    return value.toUpperCase();
+}
+
+module.exports = {
+  toUpper,
+};
+```
+
+```js
+// main.js
+function main() {
+    import("./utils").then(({ toUpper }) => {
+        console.log(toUpper("Running main"));
+    });
+}
+
+main();
+```
+
+Using `import()` is straightforward. Above the main module is dynamically importing the utils modules. There's nothing special you have to do. But while simple on the surface, Webpack ends up doing a fair bit behind the scens. In our simple example, Webpack creates two bundles: The main entry bundle and a bundle containing utils. Let's first take a look at the utils bundle.
+
+```js
+// utils_js.js -- formatted for clarity
+(self["webpackChunk"] = self["webpackChunk"] || []).push([["utils_js"], {
+
+    "./utils.js": ((module) => {
+        function toUpper(value) {
+            return value.toUpperCase();
+        }
+
+        module.exports = {
+            toUpper,
+        };
+    })
+
+}]);
+```
+
+If this code generated by Webpack looks awefully familiar that's because it is! It's the same code that was generated for the utils bundle when we configured Webpack to split the utils module out into a separate chunk. The big difference is that when using `import()`, you don't need to configure Webpack to tell it what modules you want to split out into a separate chunks. Webpack will automatically know to do that. Here's what our Webpack configuration looks like:
+
+```js
+{
+    mode: "development",
+    context: path.join(__dirname, "src"),
+    entry: ["./main.js"],
+    output: {
+        path: path.join(__dirname, "dist"),
+        filename: "[name].bundle.js",
+    },
+}
+```
+
+What about the main bundle? How has it changed? Let's take a look.
+
+```js
+() => {
+ 	var __webpack_modules__ = ({});
+
+ 	var __webpack_module_cache__ = {};
+ 	
+ 	function __webpack_require__(moduleId) {
+        ...
+ 	}
+
+ 	__webpack_require__.m = __webpack_modules__;
+
+ 	(() => {
+        ...
+ 		__webpack_require__.t = function(value, mode) { ... };
+ 	})();
+ 	
+ 	(() => {
+ 		__webpack_require__.d = (exports, definition) => { ... };
+ 	})();
+ 	
+ 	(() => {
+ 		__webpack_require__.f = {};
+ 		__webpack_require__.e = (chunkId) => { ... };
+ 	})();
+
+ 	(() => {
+ 		__webpack_require__.u = (chunkId) => { ... };
+ 	})();
+ 	
+ 	(() => {
+ 		__webpack_require__.g = (function() { ... })();
+ 	})();
+ 	
+ 	(() => {
+ 		__webpack_require__.o = (obj, prop) => ...
+ 	})();
+ 	
+ 	(() => {
+ 		var inProgress = {};
+ 		__webpack_require__.l = (url, done, key, chunkId) => { ... };
+ 	})();
+ 	
+ 	(() => {
+ 		__webpack_require__.r = (exports) => { ... };
+ 	})();
+ 	
+
+ 	(() => {
+ 		var scriptUrl;
+ 		...
+ 		__webpack_require__.p = scriptUrl;
+ 	})();
+ 	
+ 	(() => {
+ 		var installedChunks = {
+ 			"main": 0
+ 		};
+ 		
+ 		__webpack_require__.f.j = (chunkId, promises) => { ... };
+ 		
+ 		var webpackJsonpCallback = (parentChunkLoadingFunction, data) => { ... }
+ 		
+ 		var chunkLoadingGlobal = self["webpackChunk"] = self["webpackChunk"] || [];
+ 		chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
+ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
+ 	})();
+ 	
+
+var __webpack_exports__ = {};
+
+function main() {
+    __webpack_require__.e("utils_js")
+        .then(__webpack_require__.t.bind(__webpack_require__, "./utils.js", 23))
+        .then(({ toUpper }) => {
+            console.log(toUpper("Running main1"));
+        });
+}
+
+main();
+
+})();
+```

@@ -8,7 +8,7 @@ source $currentDir/common
 touch pids
 
 for proj in "${projects[@]}"; do
-    yarn "project:serve:$proj" > /dev/null 2>&1 &
+    yarn "projects:serve:$proj" > /dev/null 2>&1 &
     pid=$!
     echo $pid >> pids
 done

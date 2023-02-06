@@ -1,15 +1,17 @@
-const path = require("path")
+const package = require("./package.json");
+const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const ModuleFederationPlugin = require("webpack/lib/container/ModuleFederationPlugin");
-const ExternalTemplateRemotesPlugin = require('external-remotes-plugin');
 
 const config = {
     mode: "development",
+    target: "web",
     context: path.join(__dirname, "src"),
     entry: "./main.js",
     output: {
         path: path.join(__dirname, "dist"),
-        filename: "bundle.js"
+        filename: "host-[name].bundle.js",
+        uniqueName: package.name,
     },
     resolve: {
         extensions: ['.js'],
@@ -22,30 +24,37 @@ const config = {
         new ModuleFederationPlugin({
             name: "host",
             remotes: {
-                RemoteModuleFoo: `promise new Promise(${fetchRemoteModule("RemoteModuleFoo", "/moduleEntry.js")})`,
-                RemoteModuleBar: `promise new Promise(${fetchRemoteModule("RemoteModuleBar", "/moduleEntry.js")})`,
-                RemoteModuleBaz: `promise new Promise(${fetchRemoteModule("RemoteModuleBaz", "/moduleEntry.js")})`,
+                RemoteModuleFoo: fetchRemoteModule("RemoteModuleFoo", "/moduleEntry.js"),
+                RemoteModuleBar: fetchRemoteModule("RemoteModuleBar", "/moduleEntry.js"),
+                RemoteModuleBaz: fetchRemoteModule("RemoteModuleBaz", "/moduleEntry.js"),
             },
-            // remotes: {
-            //     RemoteModuleFoo: "RemoteModuleFoo@[window.RemoteModuleFooUrl]/moduleEntry.js",
-            //     RemoteModuleBar: "RemoteModuleBar@[window.RemoteModuleBarUrl]/moduleEntry.js"
-            // },
+            shared: {
+                "lodash/toUpper": {
+                    eager: true,
+                },
+            },
         }),
-        new ExternalTemplateRemotesPlugin(),
     ],
-    devtool: false,
-    target: "web",
-    devServer: {
-        compress: false,
-        port: 9000,
+    optimization: {
+        splitChunks: {
+            minSize: 0,
+            cacheGroups: {
+                vendor: {
+                    test: /\/node_modules\//,
+                    name: 'vendor',
+                    filename: 'host-[name].bundle.js',
+                    chunks: 'all',
+                },
+            },
+        },
     },
+    devtool: false,
 };
 
 module.exports = config;
 
 function fetchRemoteModule(remoteId, path) {
-    return `
-    (resolve) => {
+    return `promise new Promise((resolve) => {
         const script = document.createElement("script");
         script.src = window.${remoteId}Url + "${path}";
         script.onload = () => {
@@ -62,6 +71,5 @@ function fetchRemoteModule(remoteId, path) {
             resolve(m);
         }
         document.head.appendChild(script);
-    }
-    `;
+    })`;
 }
