@@ -48,7 +48,7 @@ localhost:8000: host-main.bundle.js
 localhost:8001: moduleEntry.js
 localhost:8002: moduleEntry.js	
 localhost:8003: moduleEntry.js	
-localhost:8001: host-app_js.bundle.js
+localhost:8000: host-app_js.bundle.js
 localhost:8001: foo-action_js.bundle.js
 localhost:8002: bar-action_js.bundle.js
 localhost:8003: baz-action_js.bundle.js
@@ -58,13 +58,16 @@ localhost:8003: baz-action_js.bundle.js
 
 ## What's happening in this demonstration?
 
-When you load the host app, the app's `main` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/host-app/src/main.js) will execute. When invoked, the `main` function will dynamically import three modules: First `RemoteModuleFoo/action` then `RemoteModuleBar/action` and finally `RemoteModuleBaz/action`.
+Two key aspects of module federation are being demonstrated:
 
-When a remote module has been loaded, the host app will execute an exported function from imported module. For the foo remote module, the exported `doRemoteFooAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-foo/src/action.js) is invoked, and for the bar remote module, the exported `doRemoteBarAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-bar/src/action.js) is invoked, and for the baz remote module, the exported `doRemoteBazAction` [function](https://github.com/mlcohen/simple-webpack-module-federation-demonstration/blob/main/remote-module-baz/src/action.js) is invoked.
+1. Loading remote federated modules and executing their exported logic
+2. Sharing common logic among the federated modules
 
-Each remote module is loaded in series with a bit of delay added in between. This is to help emphasize how remote module are loaded by Webpack.
+When you load the host app, the app's `main` [function](./projects/host-app/src/main.js) will be invoked. When invoked, the `main` function will dynamically import and invoke functions belonging to remote federated modules: First `RemoteModuleFoo/action` then `RemoteModuleBar/action` and finally `RemoteModuleBaz/action`.
 
-This demonstration also showcases how modules can be shared among federated modules. Here `lodash/toUpper` is shared amoung the host app to the three remote modules.
+Each remote federated module is loaded in series with a bit of delay added in between. This is to help emphasize how the remote module are loaded by Webpack.
+
+Sharing common modules is a key concept of module federation. It helps minimize the size of the federated modules and reduces the amount code to fetch and load. It's also beneficial when there is common logic that must be a singleton across federated modules that all run within the same execution environment (e.g. React). In this demonstration, all of the federated modules make use of `lodash/toUpper`. Since the host is the fisrst to be loaded, it shares its copy of `lodash/toUpper` module with the remote modules.
 
 ## What is module federation?
 
